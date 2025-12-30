@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "430070262314",
+    "project_id": "mistri-app-5f361",
+    "storage_bucket": "mistri-app-5f361.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:430070262314:android:d4cb4245753240fefcf153",
+        "android_client_info": {
+          "package_name": "com.example.mistri_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBN8_dtTa_T2L7BnsVy5gxqCsCVd_caM3U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
