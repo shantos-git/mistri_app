@@ -5,6 +5,7 @@ import 'package:mistri_app/components/populerjob_grid.dart';
 import 'package:mistri_app/helper/category_card.dart';
 import 'package:mistri_app/screens/jobPost_screen.dart';
 import 'package:mistri_app/screens/profile_screen.dart';
+import 'package:mistri_app/screens/user_map_screen.dart';
 
 class FirsthomeScreen extends StatelessWidget {
   const FirsthomeScreen({super.key});
@@ -69,26 +70,36 @@ class FirsthomeScreen extends StatelessWidget {
                     SizedBox(
                       height: 20,
                     ),
-                    // Row(
-                    //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    //   children: [
-                    //     Row(
-                    //       children: [
-                    //         Icon(Icons.location_pin),
-                    //         Text('Mirpur 10, Dhaka'),
-                    //       ],
-                    //     ),
-                    //     Icon(Icons.chevron_right_sharp),
-                    //   ],
-                    // ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => UserMapScreen(),
+                          ),
+                        );
+                      },
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.location_pin),
+                              Text('Mirpur 10, Dhaka'),
+                            ],
+                          ),
+                          Icon(Icons.chevron_right_sharp),
+                        ],
+                      ),
+                    ),
                     SizedBox(
-                      height: 32,
+                      height: 20,
                     ),
                     Container(
                       padding: EdgeInsets.symmetric(
                         horizontal: 16,
                       ),
-                      height: 52,
+                      height: 50,
                       decoration: BoxDecoration(
                         color: Colors.grey,
                         borderRadius: BorderRadius.circular(25),

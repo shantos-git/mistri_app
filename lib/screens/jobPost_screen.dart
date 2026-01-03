@@ -4,6 +4,7 @@ import 'package:mistri_app/firebase_services/firestore.dart';
 import 'package:mistri_app/models/Job.dart';
 import 'package:mistri_app/screens/firstHome_screen.dart';
 import 'package:mistri_app/screens/home_screen.dart';
+import 'package:mistri_app/screens/user_map_screen.dart';
 import 'package:mistri_app/screens/worker_dashboard.dart';
 
 class JobpostScreen extends StatefulWidget {
@@ -24,42 +25,87 @@ class _ServicesPageState extends State<JobpostScreen> {
   bool third = false;
   String selectedPaymentMethod = 'COD';
 
-  List<String> paymentMethod = ['COD', 'Bkash', 'Nagad'];
+  List<String> paymentMethod = [
+    'COD',
+    'Bkash',
+  ];
 
   List<String> serviceTypes = ["Electrical", "Plumbing", "Cleaning"];
 
-  List<String> generalElectrical = [
-    "Switch repair / replacement",
-    "Socket repair / replacement",
-    "Fuse replacement",
-    "MCB / breaker repair",
-    "Short-circuit fixing",
-    "Power outage troubleshooting",
-    "Others"
-  ];
+  // List<String> generalElectrical = [
+  //   "Switch repair / replacement",
+  //   "Socket repair / replacement",
+  //   "Fuse replacement",
+  //   "MCB / breaker repair",
+  //   "Short-circuit fixing",
+  //   "Power outage troubleshooting",
+  //   "Others"
+  // ];
 
-  List<String> plumbingCategories = [
-    'General Repair & Maintenance',
-    'Drain Cleaning & Clogging',
-    'Pipe Installation & Replacement',
-    'Fixture Installation (Toilets, Sinks, Faucets)',
-    'Water Heater Services',
-    'Sewer Line Services',
-    'Leak Detection',
-    'Water Filtration Systems',
-    'Emergency Plumbing',
-    'Septic Tank Services',
-  ];
+  // List<String> plumbingCategories = [
+  //   'General Repair & Maintenance',
+  //   'Drain Cleaning & Clogging',
+  //   'Pipe Installation & Replacement',
+  //   'Fixture Installation (Toilets, Sinks, Faucets)',
+  //   'Water Heater Services',
+  //   'Sewer Line Services',
+  //   'Leak Detection',
+  //   'Water Filtration Systems',
+  //   'Emergency Plumbing',
+  //   'Septic Tank Services',
+  // ];
 
-  Map<String, String> prices = {
-    "Switch repair / replacement": "৳100.00",
-    "Socket repair / replacement": "৳100.00",
-    "Fuse replacement": "৳100.00",
-    "MCB / breaker repair": "৳140.00",
-    "Short-circuit fixing": "৳300.00",
-    "Power outage troubleshooting": "৳200.00",
-    "Others": "৳0.00",
+  // Map<String, String> prices = {
+  //   "Switch repair / replacement": "৳100.00",
+  //   "Socket repair / replacement": "৳100.00",
+  //   "Fuse replacement": "৳100.00",
+  //   "MCB / breaker repair": "৳140.00",
+  //   "Short-circuit fixing": "৳300.00",
+  //   "Power outage troubleshooting": "৳200.00",
+  //   "Others": "৳0.00",
+  // };
+
+  /// 🔥 SERVICE LOGIC DATA
+  final Map<String, Map<String, Map<String, String>>> serviceData = {
+    "Electrical": {
+      "General Electrical Repair": {
+        "Switch repair / replacement": "৳100",
+        "Socket repair / replacement": "৳100",
+        "Fuse replacement": "৳100",
+        "MCB / breaker repair": "৳140",
+        "Short-circuit fixing": "৳300",
+        "Power outage troubleshooting": "৳200",
+        "Others": "৳0",
+      },
+      "Fan Services": {
+        "Fan installation": "৳300",
+        "Fan repair": "৳200",
+      },
+    },
+    "Plumbing": {
+      "General Repair & Maintenance": {
+        "Leak fixing": "৳200",
+        "Tap repair": "৳150",
+      },
+      "Drain Cleaning & Clogging": {
+        "Wash basin clog": "৳250",
+        "Toilet clog": "৳400",
+      },
+    },
+    "Cleaning": {
+      "Home Cleaning": {
+        "1 Bedroom cleaning": "৳800",
+        "2 Bedroom cleaning": "৳1200",
+      },
+    },
   };
+
+  double get basePrice {
+    final price =
+        serviceData[selectedServiceType]?[selectedService]?[selectedSpecific];
+    if (price == null) return 0;
+    return double.parse(price.replaceAll('৳', ''));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -337,7 +383,13 @@ class _ServicesPageState extends State<JobpostScreen> {
                               flex: 1,
                               child: Container(
                                 child: ElevatedButton(
-                                    onPressed: () {},
+                                    onPressed: () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                UserMapScreen(),
+                                          ),
+                                        ),
                                     child: Center(
                                       child: Text(
                                         'Change adress',
@@ -358,7 +410,7 @@ class _ServicesPageState extends State<JobpostScreen> {
                           children: [
                             _serviceDetails(
                               'Base Rate',
-                              prices[selectedSpecific].toString(),
+                              '৳$basePrice',
                             ),
                             _serviceDetails(
                               'Distance',
@@ -377,7 +429,7 @@ class _ServicesPageState extends State<JobpostScreen> {
                           children: [
                             _serviceDetails(
                               'Subtotal',
-                              '৳${double.parse(prices[selectedSpecific].toString().substring(1)) + 30 + 10}',
+                              '৳${basePrice + 30 + 10}',
                             ),
                             _serviceDetails(
                               'Service carge',
@@ -400,7 +452,7 @@ class _ServicesPageState extends State<JobpostScreen> {
                               style: TextStyle(fontWeight: FontWeight.bold),
                             ),
                             Text(
-                              '৳${double.parse(prices[selectedSpecific].toString().substring(1)) + 30 + 10 + 5 - 10}',
+                              '৳${basePrice + 30 + 10 + 5 - 10}',
                               style: TextStyle(fontWeight: FontWeight.bold),
                             )
                           ],
@@ -420,7 +472,14 @@ class _ServicesPageState extends State<JobpostScreen> {
                             return Padding(
                               padding: const EdgeInsets.only(right: 10),
                               child: ChoiceChip(
-                                avatar: Icon(Icons.money_rounded),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                avatar: t == 'Bkash'
+                                    ? Image.asset(
+                                        'assets/images/bkash.png',
+                                      )
+                                    : Image.asset('assets/images/cash.png'),
                                 label: Text(t),
                                 selected: active,
                                 selectedColor: Colors.blue,
@@ -515,6 +574,8 @@ class _ServicesPageState extends State<JobpostScreen> {
                                 onSelected: (_) {
                                   setState(() {
                                     selectedServiceType = t;
+                                    selectedService = null;
+                                    selectedSpecific = null;
                                   });
                                 },
                               ),
@@ -541,20 +602,15 @@ class _ServicesPageState extends State<JobpostScreen> {
                             child: DropdownButton<String>(
                               hint: const Text("Select Service"),
                               value: selectedService,
-                              items: [
-                                "General Electrical Repair",
-                                'Fan Services',
-                                'Light & LED Services',
-                                'Heavy Load Electrical Work',
-                                'Safety & Protection',
-                                'Smart Home & Modern',
-                                'Emergency Services'
-                              ]
+                              items: serviceData[selectedServiceType]!
+                                  .keys
                                   .map((v) => DropdownMenuItem(
                                       value: v, child: Text(v)))
                                   .toList(),
-                              onChanged: (v) =>
-                                  setState(() => selectedService = v),
+                              onChanged: (v) => setState(() {
+                                selectedService = v;
+                                selectedSpecific = null;
+                              }),
                             ),
                           ),
                         ),
@@ -574,14 +630,19 @@ class _ServicesPageState extends State<JobpostScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Column(
-                              children: generalElectrical.map((item) {
+                              children: serviceData[selectedServiceType]![
+                                      selectedService]!
+                                  .entries
+                                  .map((item) {
                                 return RadioListTile(
-                                  title: Text(item),
-                                  secondary: Text(prices[item]!),
-                                  value: item,
+                                  title: Text(item.key),
+                                  secondary: Text(item.value),
+                                  value: item.key,
                                   groupValue: selectedSpecific,
                                   onChanged: (v) {
-                                    setState(() => selectedSpecific = v);
+                                    setState(
+                                      () => selectedSpecific = v.toString(),
+                                    );
                                   },
                                 );
                               }).toList(),
@@ -611,12 +672,20 @@ class _ServicesPageState extends State<JobpostScreen> {
                         ),
 
                         const SizedBox(height: 10),
-                        Row(
-                          children: const [
-                            Icon(Icons.location_on_outlined, size: 20),
-                            SizedBox(width: 6),
-                            Text("Set location on Map"),
-                          ],
+                        GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => UserMapScreen(),
+                            ),
+                          ),
+                          child: Row(
+                            children: const [
+                              Icon(Icons.location_on_outlined, size: 20),
+                              SizedBox(width: 6),
+                              Text("Set location on Map"),
+                            ],
+                          ),
                         ),
 
                         const SizedBox(height: 25),
