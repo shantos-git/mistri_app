@@ -387,7 +387,7 @@ class _ServicesPageState extends State<JobpostScreen> {
                                           context,
                                           MaterialPageRoute(
                                             builder: (context) =>
-                                                UserMapScreen(),
+                                                UserLocationMap(),
                                           ),
                                         ),
                                     child: Center(
@@ -676,7 +676,7 @@ class _ServicesPageState extends State<JobpostScreen> {
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => UserMapScreen(),
+                              builder: (context) => UserLocationMap(),
                             ),
                           ),
                           child: Row(
