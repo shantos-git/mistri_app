@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mistri_app/firebase_services/firestore.dart';
 import 'package:mistri_app/screens/login_screen.dart';
+import 'package:mistri_app/screens/worker_map_screen.dart';
 import 'package:rxdart/rxdart.dart';
 
 class WorkerDashboard extends StatefulWidget {
@@ -15,19 +16,25 @@ class WorkerDashboard extends StatefulWidget {
 class _WorkerDashboardState extends State<WorkerDashboard> {
   final Firestore _firestore = Firestore();
 
-  /// Track jobs already seen to avoid duplicate popups
-  final Set<String> _seenJobIdsForPopup = {};
+  /// Jobs that already existed when app opened
+  final Set<String> _initialJobIds = {};
 
-  /// Combine open jobs and users in real-time
-  Stream<List<dynamic>> _combinedStream() {
-    return Rx.combineLatest2(
-      _firestore.getJob(), // open jobs only
+  /// Jobs already shown as popup
+  final Set<String> _popupShownFor = {};
+
+  /// Track first snapshot
+  bool _initialJobsCaptured = false;
+
+  /// Combine jobs + users stream
+  Stream<List<QuerySnapshot>> _combinedStream() {
+    return Rx.combineLatest2<QuerySnapshot, QuerySnapshot, List<QuerySnapshot>>(
+      _firestore.getJob(),
       _firestore.getUser(),
       (jobs, users) => [jobs, users],
     );
   }
 
-  /// Helper to safely read strings from Firestore
+  /// Safe Firestore string reader
   String safeString(Map<String, dynamic>? map, String key,
       [String defaultValue = "N/A"]) {
     if (map == null) return defaultValue;
@@ -36,22 +43,22 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
     return value.toString();
   }
 
-  /// Show popup for new job
-  void _showJobNotification(String jobId, String category) {
-    if (_seenJobIdsForPopup.contains(jobId)) return;
-    _seenJobIdsForPopup.add(jobId);
+  /// Show popup once per new job
+  void _showJobPopup(String jobId, String category) {
+    if (_popupShownFor.contains(jobId)) return;
+    _popupShownFor.add(jobId);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       showDialog(
         context: context,
-        barrierDismissible: true,
-        builder: (context) => AlertDialog(
+        builder: (_) => AlertDialog(
           title: const Text("New Job Available"),
           content: Text("Category: $category"),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text("Close"),
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK"),
             ),
           ],
         ),
@@ -66,117 +73,139 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
         title: const Text("Worker Dashboard"),
         actions: [
           IconButton(
-              onPressed: () {
-                FirebaseAuth.instance.signOut();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => LoginScreen(),
-                  ),
-                );
-              },
-              icon: Icon(
-                Icons.logout,
-              ))
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => LoginScreen()),
+              );
+            },
+          )
         ],
       ),
-      body: StreamBuilder<List<dynamic>>(
+      body: StreamBuilder<List<QuerySnapshot>>(
         stream: _combinedStream(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final jobSnap = snapshot.data![0] as QuerySnapshot;
-          final userSnap = snapshot.data![1] as QuerySnapshot;
+          final jobSnapshot = snapshot.data![0];
+          final userSnapshot = snapshot.data![1];
 
-          final jobs = jobSnap.docs;
-          final users = userSnap.docs;
+          final jobs = jobSnapshot.docs;
+          final users = userSnapshot.docs;
+
+          /// 🧠 Capture initial jobs ONCE (NO popup)
+          if (!_initialJobsCaptured) {
+            for (var job in jobs) {
+              _initialJobIds.add(job.id);
+            }
+            _initialJobsCaptured = true;
+          } else {
+            /// 🔥 Detect truly NEW jobs
+            for (var job in jobs) {
+              if (!_initialJobIds.contains(job.id)) {
+                final data = job.data() as Map<String, dynamic>?;
+                final status = safeString(data, "status");
+                final category = safeString(data, "category");
+
+                if (status == "open") {
+                  _showJobPopup(job.id, category);
+                }
+
+                _initialJobIds.add(job.id);
+              }
+            }
+          }
 
           if (jobs.isEmpty) {
             return const Center(child: Text("No jobs available"));
           }
 
-          // Build user map for fast lookup (key = userid)
+          /// Build user lookup map
           final Map<String, Map<String, dynamic>> userMap = {
             for (var u in users)
               safeString(u.data() as Map<String, dynamic>, "userid"):
                   u.data() as Map<String, dynamic>
           };
 
-          // Trigger popups for new jobs
-          for (var jobDoc in jobs) {
-            final jobData = jobDoc.data() as Map<String, dynamic>?;
-
-            final String jobId = jobDoc.id;
-            final String status = safeString(jobData, "status", "N/A");
-            final String category = safeString(jobData, "category", "N/A");
-
-            if (status == "open" && !_seenJobIdsForPopup.contains(jobId)) {
-              _showJobNotification(jobId, category);
-            }
-          }
-
-          var postedby;
-          for (var u in users) {
-            if (u["userid"] == jobs[1]["userid"]) {
-              postedby = u.id;
-            }
-          }
-
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: jobs.length,
             itemBuilder: (context, index) {
-              print('this is the post $postedby');
+              final job = jobs[index];
+              final jobData = job.data() as Map<String, dynamic>?;
 
-              final jobData = jobs[index].data() as Map<String, dynamic>?;
-
-              final String userId = safeString(jobData, "userid", "");
+              final userId = safeString(jobData, "userid", "");
               final userData = userMap[userId];
 
-              final String category = safeString(jobData, "category", "N/A");
-              final String status = safeString(jobData, "status", "N/A");
+              final category = safeString(jobData, "category");
+              final status = safeString(jobData, "status");
 
-              final String name = safeString(userData, "name", "Unknown User");
-              final String number = safeString(userData, "Phone_number", "N/A");
-              final String address = safeString(userData, "adress", "N/A");
+              final name = safeString(userData, "name", "Unknown");
+              final phone = safeString(userData, "Phone_number");
+              final address = safeString(userData, "adress");
 
-              return Card(
-                margin: const EdgeInsets.only(bottom: 15),
-                child: Padding(
-                  padding: const EdgeInsets.all(15),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("Category: $category",
-                          style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text("Status: $status",
-                          style: const TextStyle(color: Colors.blue)),
-                      const SizedBox(height: 10),
-                      Text("Client Name: $name"),
-                      Text("Client Number: $number"),
-                      Text("Address: $address"),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          ElevatedButton(
-                            onPressed: () =>
-                                _firestore.acceptJob(jobs[index].id),
-                            child: const Text("Accept"),
-                          ),
-                          const SizedBox(width: 10),
-                          ElevatedButton(
-                            onPressed: () =>
-                                _firestore.rejectJob(jobs[index].id),
-                            child: const Text("Reject"),
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red),
-                          ),
-                        ],
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => JobMapPage(
+                        jobId: job.id,
+                        userId: userId,
+                        jobData: {
+                          "category": category,
+                          "status": status,
+                          "clientName": name,
+                          "clientPhone": phone,
+                          "clientAddress": address,
+                        },
                       ),
-                    ],
+                    ),
+                  );
+                },
+                child: Card(
+                  margin: const EdgeInsets.only(bottom: 15),
+                  child: Padding(
+                    padding: const EdgeInsets.all(15),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Category: $category",
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          "Status: $status",
+                          style: const TextStyle(color: Colors.blue),
+                        ),
+                        const SizedBox(height: 10),
+                        Text("Client Name: $name"),
+                        Text("Client Number: $phone"),
+                        Text("Address: $address"),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            ElevatedButton(
+                              onPressed: () => _firestore.acceptJob(job.id),
+                              child: const Text("Accept"),
+                            ),
+                            const SizedBox(width: 10),
+                            ElevatedButton(
+                              onPressed: () => _firestore.rejectJob(job.id),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                              ),
+                              child: const Text("Reject"),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -187,137 +216,3 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
     );
   }
 }
-
-// import 'package:firebase_auth/firebase_auth.dart';
-// import 'package:flutter/material.dart';
-// import 'package:cloud_firestore/cloud_firestore.dart';
-// import 'package:mistri_app/components/workAccept_card.dart';
-// import 'package:mistri_app/firebase_services/firestore.dart';
-// import 'package:mistri_app/screens/login_screen.dart';
-
-// class WorkerDashboard extends StatefulWidget {
-//   const WorkerDashboard({super.key});
-
-//   @override
-//   State<WorkerDashboard> createState() => _WorkerDashboardState();
-// }
-
-// class _WorkerDashboardState extends State<WorkerDashboard> {
-//   final Firestore _firestore = Firestore();
-//   final Set<String> _seenJobIdsForPopup = Set<String>();
-
-//   void _showJobNotification(String jobId, String category) {
-//     if (_seenJobIdsForPopup.contains(jobId)) return;
-//     _seenJobIdsForPopup.add(jobId);
-
-//     WidgetsBinding.instance.addPostFrameCallback((_) {
-//       showDialog(
-//         context: context,
-//         barrierDismissible: false,
-//         builder: (context) => JobNotificationDialog(
-//           jobId: jobId,
-//           category: category,
-//           firestoreService: _firestore,
-//           onTimeout: () {
-//             if (Navigator.of(context).canPop()) {
-//               Navigator.of(context).pop();
-//             }
-//             // Optional: Mark job as missed here
-//           },
-//         ),
-//       );
-//     });
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: Text("Worker Dashboard"),
-//         actions: [
-//           Padding(
-//             padding: const EdgeInsets.all(10.0),
-//             child: IconButton(
-//                 onPressed: () {
-//                   FirebaseAuth.instance.signOut();
-//                   Navigator.push(
-//                     context,
-//                     MaterialPageRoute(
-//                       builder: (context) => LoginScreen(),
-//                     ),
-//                   );
-//                 },
-//                 icon: Icon(
-//                   Icons.logout,
-//                 )),
-//           )
-//         ],
-//       ),
-//       body: StreamBuilder<QuerySnapshot>(
-//         stream: _firestore.getJob(),
-//         builder: (context, snapshot) {
-//           if (snapshot.hasError) {
-//             print("Firestore Error: ${snapshot.error}"); // Log the error
-//             return Center(child: Text('Something went wrong'));
-//           }
-
-//           if (snapshot.connectionState == ConnectionState.waiting) {
-//             return Center(child: CircularProgressIndicator());
-//           }
-
-//           // Use a final variable for clarity
-//           final List<DocumentSnapshot> jobs = snapshot.data!.docs;
-
-//           // LOGIC TO DETECT NEW JOBS SAFELY
-//           for (var jobDoc in jobs) {
-//             // Cast data safely to a Map first
-//             final data = jobDoc.data() as Map<String, dynamic>?;
-
-//             if (data != null) {
-//               final String jobId = jobDoc.id;
-//               // Safely access fields, defaulting to 'unknown' or 'N/A' if missing
-//               final String status = data['status'] ?? 'unknown';
-//               final String jobCategory = data['category'] ?? 'N/A';
-
-//               if (status == 'pending' && !_seenJobIdsForPopup.contains(jobId)) {
-//                 _showJobNotification(jobId, jobCategory);
-//               }
-//             }
-//           }
-//           // END LOGIC
-
-//           return ListView.builder(
-//             itemCount: jobs.length,
-//             itemBuilder: (BuildContext context, int index) {
-//               var job = jobs[index];
-//               // Safely access data for the ListView display
-//               final jobData = job.data() as Map<String, dynamic>?;
-
-//               if (jobData == null)
-//                 return SizedBox.shrink(); // Skip if data is null
-
-//               final String status = jobData['status'] ?? 'unknown';
-//               final String category = jobData['category'] ?? 'N/A';
-
-//               return Container(
-//                 child: Column(
-//                   children: [
-//                     Text(
-//                       category,
-//                     ),
-//                     Text(status),
-//                     ElevatedButton(
-//                         onPressed: () {
-//                           _firestore.acceptJob(job.id);
-//                         },
-//                         child: Text('accept'))
-//                   ],
-//                 ),
-//               );
-//             },
-//           );
-//         },
-//       ),
-//     );
-//   }
-// }
