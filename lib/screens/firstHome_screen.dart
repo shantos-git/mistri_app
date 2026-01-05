@@ -27,7 +27,6 @@ class _FirsthomeScreenState extends State<FirsthomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final number =
           Provider.of<UniversalModel>(context, listen: false).phone_number;
-      print("Number after build: $number");
 
       if (number.isNotEmpty) {
         _loadUserAddress(number);
@@ -55,8 +54,6 @@ class _FirsthomeScreenState extends State<FirsthomeScreen> {
       context,
       MaterialPageRoute(builder: (_) => const UserLocationMap()),
     );
-
-    print("Map result: $result");
 
     if (result == null) return;
 
