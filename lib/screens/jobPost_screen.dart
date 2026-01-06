@@ -65,7 +65,7 @@ class _ServicesPageState extends State<JobpostScreen> {
   //   "Others": "৳0.00",
   // };
 
-  /// 🔥 SERVICE LOGIC DATA
+  // SERVICE LOGIC DATA
   final Map<String, Map<String, Map<String, String>>> serviceData = {
     "Electrical": {
       "General Electrical Repair": {

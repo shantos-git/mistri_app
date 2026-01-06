@@ -17,7 +17,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController numberController = TextEditingController();
 
-  // Variable to store the Firebase token needed for resending (managed here temporarily)
+  // Variable to store the Firebase token needed for resending
   int? _resendToken;
 
   // Centralized function to handle the phone verification API call
@@ -27,7 +27,11 @@ class _LoginScreenState extends State<LoginScreen> {
     Provider.of<UniversalModel>(context, listen: false).setNumber(phoneNumber);
 
     // Show a loading indicator if needed before making the call
-    // ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Sending OTP...")));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Sending OTP..."),
+      ),
+    );
 
     FirebaseAuth.instance.verifyPhoneNumber(
       phoneNumber: phoneNumber,

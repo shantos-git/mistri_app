@@ -25,7 +25,7 @@ class _UserLocationMapState extends State<UserLocationMap> {
     _setCurrentLocation();
   }
 
-  // 📍 GET CURRENT LOCATION
+  // GET CURRENT LOCATION
   Future<void> _setCurrentLocation() async {
     LocationPermission permission = await Geolocator.requestPermission();
     Position pos = await Geolocator.getCurrentPosition();
@@ -35,7 +35,7 @@ class _UserLocationMapState extends State<UserLocationMap> {
     await _updateAddress(pos.latitude, pos.longitude);
   }
 
-  // 🧭 LAT LNG → ADDRESS
+  // LAT LNG → ADDRESS
   Future<void> _updateAddress(double lat, double lng) async {
     List<Placemark> placemarks = await placemarkFromCoordinates(lat, lng);
 
@@ -47,7 +47,7 @@ class _UserLocationMapState extends State<UserLocationMap> {
     });
   }
 
-  // 🔎 SEARCH ADDRESS
+  // SEARCH ADDRESS
   Future<void> searchLocation(String query) async {
     final url =
         "https://nominatim.openstreetmap.org/search?q=$query&format=json&limit=1";
@@ -77,7 +77,7 @@ class _UserLocationMapState extends State<UserLocationMap> {
       appBar: AppBar(title: const Text("Select Location")),
       body: Column(
         children: [
-          // 🔎 SEARCH BOX
+          // SEARCH BOX
           Padding(
             padding: const EdgeInsets.all(8),
             child: TextField(
@@ -96,7 +96,7 @@ class _UserLocationMapState extends State<UserLocationMap> {
             ),
           ),
 
-          // 🗺 MAP
+          // MAP
           Expanded(
             child: FlutterMap(
               mapController: _mapController,
@@ -137,7 +137,7 @@ class _UserLocationMapState extends State<UserLocationMap> {
             ),
           ),
 
-          // 📌 ADDRESS DISPLAY
+          //  ADDRESS DISPLAY
           Padding(
             padding: const EdgeInsets.all(12),
             child: Text(
@@ -147,7 +147,7 @@ class _UserLocationMapState extends State<UserLocationMap> {
             ),
           ),
 
-          // ✅ CONFIRM
+          //  CONFIRM
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context, {

@@ -151,140 +151,141 @@ class _OtpverificationScreenState extends State<OtpverificationScreen> {
         Provider.of<UniversalModel>(context, listen: false).phone_number;
     return Scaffold(
       body: SafeArea(
-          child: StreamBuilder<QuerySnapshot>(
-              stream: _firestore.getWorker(),
-              builder: (context, snapshot) {
-                final List<DocumentSnapshot> workers = snapshot.data!.docs;
-                return SizedBox.expand(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      crossAxisAlignment: CrossAxisAlignment.center,
+        child: StreamBuilder<QuerySnapshot>(
+          stream: _firestore.getWorker(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final List<DocumentSnapshot> workers = snapshot.data!.docs;
+            return SizedBox.expand(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // ... (Image and Title UI code maintained) ...
+                    Image.asset('assets/images/otp.png', height: 128),
+                    Column(
                       children: [
-                        // ... (Image and Title UI code maintained) ...
-                        Image.asset('assets/images/otp.png', height: 128),
-                        Column(
-                          children: [
-                            const Text(
-                              'OTP Verfication',
-                              style: TextStyle(
-                                  fontSize: 32, fontWeight: FontWeight.w500),
-                            ),
-                            Text(
-                              'One Time Password(OTP) has been sent to via SMS\n                             to ${number}',
-                              style: const TextStyle(
-                                  fontSize: 14, color: Colors.grey),
-                            )
-                          ],
+                        const Text(
+                          'OTP Verfication',
+                          style: TextStyle(
+                              fontSize: 32, fontWeight: FontWeight.w500),
                         ),
-                        Column(
-                          children: [
-                            const Text(
-                              'Enter the OTP below to verify it',
-                              style: TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.w400),
-                            ),
-                            Pinput(
-                              controller: otpController,
-                              length: 6,
-                            ),
-                          ],
+                        Text(
+                          'One Time Password(OTP) has been sent to via SMS\n                             to ${number}',
+                          style:
+                              const TextStyle(fontSize: 14, color: Colors.grey),
+                        )
+                      ],
+                    ),
+                    Column(
+                      children: [
+                        const Text(
+                          'Enter the OTP below to verify it',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.w400),
                         ),
-                        Column(
-                          children: [
-                            MyButton(
-                                btntxt: 'VERIFY OTP',
-                                onClick: () async {
-                                  try {
-                                    // 1. Verify OTP
-                                    PhoneAuthCredential credential =
-                                        PhoneAuthProvider.credential(
-                                      verificationId: _currentVerificationId,
-                                      smsCode: otpController.text,
-                                    );
+                        Pinput(
+                          controller: otpController,
+                          length: 6,
+                        ),
+                      ],
+                    ),
+                    Column(
+                      children: [
+                        MyButton(
+                            btntxt: 'VERIFY OTP',
+                            onClick: () async {
+                              try {
+                                // 1. Verify OTP
+                                PhoneAuthCredential credential =
+                                    PhoneAuthProvider.credential(
+                                  verificationId: _currentVerificationId,
+                                  smsCode: otpController.text,
+                                );
 
-                                    await FirebaseAuth.instance
-                                        .signInWithCredential(credential);
+                                await FirebaseAuth.instance
+                                    .signInWithCredential(credential);
 
-                                    _timer?.cancel();
+                                _timer?.cancel();
 
-                                    // 2. Check if user exists in users collection
-                                    bool userExists =
-                                        await checkIfUserExists(number);
+                                // 2. Check if user exists in users collection
+                                bool userExists =
+                                    await checkIfUserExists(number);
 
-                                    if (!userExists) {
-                                      // New user → go to signup
-                                      Navigator.pushReplacement(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => SignupScreen(),
-                                        ),
-                                      );
-                                      return;
-                                    }
-
-                                    // 3. CHECK IF THIS USER IS A WORKER
-                                    QuerySnapshot workerSnap =
-                                        await _firestore.getWorker().first;
-
-                                    bool isWorker = workerSnap.docs
-                                        .any((doc) => doc.id == number);
-
-                                    if (isWorker) {
-                                      Navigator.pushReplacement(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const WorkerDashboard(),
-                                        ),
-                                      );
-                                    } else {
-                                      Navigator.pushReplacement(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const HomeScreen(),
-                                        ),
-                                      );
-                                    }
-                                  } catch (ex) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text("Invalid OTP")),
-                                    );
-                                  }
-                                }),
-                            const SizedBox(height: 20),
-                            // RESEND OTP UI INTEGRATION
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text("Didn't receive code?"),
-                                TextButton(
-                                  // The `onPressed` handler is null if `_canResend` is false (during countdown)
-                                  onPressed: _canResend ? _resendOtp : null,
-                                  child: Text(
-                                    // Dynamically change text based on timer state
-                                    _canResend
-                                        ? "Resend"
-                                        : "Resend in $_start s",
-                                    style: TextStyle(
-                                      color: _canResend
-                                          ? Colors.blue
-                                          : Colors.grey,
-                                      fontWeight: FontWeight.bold,
+                                if (!userExists) {
+                                  // New user → go to signup
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => SignupScreen(),
                                     ),
-                                  ),
+                                  );
+                                  return;
+                                }
+
+                                // 3. CHECK IF THIS USER IS A WORKER
+                                QuerySnapshot workerSnap =
+                                    await _firestore.getWorker().first;
+
+                                bool isWorker = workerSnap.docs
+                                    .any((doc) => doc.id == number);
+
+                                if (isWorker) {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const WorkerDashboard(),
+                                    ),
+                                  );
+                                } else {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const HomeScreen(),
+                                    ),
+                                  );
+                                }
+                              } catch (ex) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("Invalid OTP")),
+                                );
+                              }
+                            }),
+                        const SizedBox(height: 20),
+                        // RESEND OTP UI INTEGRATION
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text("Didn't receive code?"),
+                            TextButton(
+                              // The `onPressed` handler is null if `_canResend` is false (during countdown)
+                              onPressed: _canResend ? _resendOtp : null,
+                              child: Text(
+                                // Dynamically change text based on timer state
+                                _canResend ? "Resend" : "Resend in $_start s",
+                                style: TextStyle(
+                                  color: _canResend ? Colors.blue : Colors.grey,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                              ],
+                              ),
                             ),
                           ],
                         ),
                       ],
                     ),
-                  ),
-                );
-              })),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 }

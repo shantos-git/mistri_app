@@ -399,22 +399,22 @@ class _SignupScreenState extends State<SignupScreen> {
 
               const SizedBox(height: 10),
               // Dropdown Area
-              DropdownButton<String>(
-                hint: const Text("Select Area"),
-                value: selectedArea,
-                items: [
-                  'Mirpur',
-                  'Dhanmondi',
-                  'Bosundhora',
-                  'Banani',
-                  'Gulsan',
-                  'Mohakhali',
-                  'Mohammadpur',
-                ]
-                    .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-                    .toList(),
-                onChanged: (v) => setState(() => selectedArea = v),
-              ),
+              // DropdownButton<String>(
+              //   hint: const Text("Select Area"),
+              //   value: selectedArea,
+              //   items: [
+              //     'Mirpur',
+              //     'Dhanmondi',
+              //     'Bosundhora',
+              //     'Banani',
+              //     'Gulsan',
+              //     'Mohakhali',
+              //     'Mohammadpur',
+              //   ]
+              //       .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+              //       .toList(),
+              //   onChanged: (v) => setState(() => selectedArea = v),
+              // ),
 
               const SizedBox(height: 20),
               // Gender
@@ -433,7 +433,7 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
 
               const SizedBox(height: 20),
-              // 🔹 PICK LOCATION
+              // PICK LOCATION
               MyButton(
                 btntxt: address == null ? "Pick Location" : "Location Selected",
                 onClick: () async {
@@ -467,7 +467,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
 
               const SizedBox(height: 20),
-              // 🔹 CREATE ACCOUNT
+              // CREATE ACCOUNT
               MyButton(
                 btntxt: 'CREATE ACCOUNT',
                 onClick: () async {
