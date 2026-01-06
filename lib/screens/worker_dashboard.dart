@@ -97,14 +97,14 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
           final jobs = jobSnapshot.docs;
           final users = userSnapshot.docs;
 
-          /// 🧠 Capture initial jobs ONCE (NO popup)
+          ///  Capture initial jobs ONCE (NO popup)
           if (!_initialJobsCaptured) {
             for (var job in jobs) {
               _initialJobIds.add(job.id);
             }
             _initialJobsCaptured = true;
           } else {
-            /// 🔥 Detect truly NEW jobs
+            ///  Detect truly NEW jobs
             for (var job in jobs) {
               if (!_initialJobIds.contains(job.id)) {
                 final data = job.data() as Map<String, dynamic>?;
@@ -188,22 +188,22 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
                         Text("Client Number: $phone"),
                         Text("Address: $address"),
                         const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            ElevatedButton(
-                              onPressed: () => _firestore.acceptJob(job.id),
-                              child: const Text("Accept"),
-                            ),
-                            const SizedBox(width: 10),
-                            ElevatedButton(
-                              onPressed: () => _firestore.rejectJob(job.id),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                              ),
-                              child: const Text("Reject"),
-                            ),
-                          ],
-                        ),
+                        // Row(
+                        //   children: [
+                        //     ElevatedButton(
+                        //       onPressed: () => _firestore.acceptJob(job.id),
+                        //       child: const Text("Accept"),
+                        //     ),
+                        //     const SizedBox(width: 10),
+                        //     ElevatedButton(
+                        //       onPressed: () => _firestore.rejectJob(job.id),
+                        //       style: ElevatedButton.styleFrom(
+                        //         backgroundColor: Colors.red,
+                        //       ),
+                        //       child: const Text("Reject"),
+                        //     ),
+                        //   ],
+                        // ),
                       ],
                     ),
                   ),

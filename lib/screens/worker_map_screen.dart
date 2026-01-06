@@ -25,111 +25,98 @@ class JobMapPage extends StatefulWidget {
 
 class _JobMapPageState extends State<JobMapPage> {
   final Firestore _firestore = Firestore();
+  final MapController _mapController = MapController();
+
   LatLng? workerLocation;
   LatLng? customerLocation;
   List<LatLng> routePoints = [];
-  final MapController _mapController = MapController();
+
   bool _loading = true;
+  bool _jobAccepted = false;
 
   @override
   void initState() {
     super.initState();
-    _loadLocations();
+    _jobAccepted = widget.jobData['status'] == 'accepted';
+    _loadLocationsAndRoute(); // 🔥 LOAD MAP + ROUTE IMMEDIATELY
   }
 
-  Future<void> _loadLocations() async {
+  Future<void> _loadLocationsAndRoute() async {
     try {
-      final data = widget.jobData;
-      final number = data['clientPhone'];
-      // Check permission
+      final number = widget.jobData['clientPhone'];
+
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          print("Location permissions are denied");
-          setState(() {
-            _loading = false;
-          });
-          return;
-        }
+        if (permission == LocationPermission.denied) return;
       }
-
-      if (permission == LocationPermission.deniedForever) {
-        print("Location permissions are permanently denied");
-        setState(() {
-          _loading = false;
-        });
-        return;
-      }
+      if (permission == LocationPermission.deniedForever) return;
 
       // Get worker location
-      Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
       workerLocation = LatLng(position.latitude, position.longitude);
 
-      print("the use id is ${widget.userId}");
-
       // Get customer location from Firestore
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+      final userDoc = await FirebaseFirestore.instance
           .collection('Users')
           .doc(number)
           .get();
 
-      final userData = userDoc.data() as Map<String, dynamic>?;
+      final userData = userDoc.data() as Map<String, dynamic>;
 
-      double lat =
-          double.tryParse(userData?['latitude']?.toString() ?? '') ?? 0;
-      double lng =
-          double.tryParse(userData?['longitude']?.toString() ?? '') ?? 0;
+      customerLocation = LatLng(
+        double.parse(userData['latitude'].toString()),
+        double.parse(userData['longitude'].toString()),
+      );
 
-      customerLocation = LatLng(lat, lng);
-
-      // Get route from OSRM
-      if (workerLocation != null && customerLocation != null) {
-        await _getRouteOSRM(workerLocation!, customerLocation!);
-      }
+      // 🔥 ALWAYS GET ROUTE IMMEDIATELY
+      await _getRouteOSRM(workerLocation!, customerLocation!);
 
       if (mounted) {
-        setState(() {
-          _loading = false;
-        });
-        if (workerLocation != null) {
-          _mapController.move(workerLocation!, 13.0);
-        }
+        setState(() => _loading = false);
+        _mapController.move(workerLocation!, 13);
       }
     } catch (e) {
-      print("Error loading locations: $e");
-      if (mounted) {
-        setState(() {
-          _loading = false;
-        });
-      }
+      debugPrint("Error loading map and route: $e");
+      setState(() => _loading = false);
     }
   }
 
-  // Fetch route from OSRM API
   Future<void> _getRouteOSRM(LatLng start, LatLng end) async {
-    try {
-      final url =
-          "https://router.project-osrm.org/route/v1/driving/${start.longitude},${start.latitude};${end.longitude},${end.latitude}?overview=full&geometries=geojson";
+    final url = "https://router.project-osrm.org/route/v1/driving/"
+        "${start.longitude},${start.latitude};"
+        "${end.longitude},${end.latitude}"
+        "?overview=full&geometries=geojson";
 
-      final response = await http.get(Uri.parse(url));
+    final response = await http.get(Uri.parse(url));
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final coords = data['routes'][0]['geometry']['coordinates'];
 
-        final coords = data['routes'][0]['geometry']['coordinates'] as List;
-
-        routePoints = coords
-            .map((c) =>
-                LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()))
-            .toList();
-      } else {
-        print("Failed to fetch OSRM route: ${response.body}");
-      }
-    } catch (e) {
-      print("Error fetching OSRM route: $e");
+      routePoints = coords
+          .map<LatLng>((c) => LatLng(c[1].toDouble(), c[0].toDouble()))
+          .toList();
     }
+  }
+
+  Future<void> _acceptJob() async {
+    await _firestore.acceptJob(widget.jobId);
+    setState(() {
+      _jobAccepted = true;
+    });
+  }
+
+  Future<void> _confirmArrival() async {
+    Navigator.pop(context);
+    await FirebaseFirestore.instance
+        .collection('Jobs')
+        .doc(widget.jobId)
+        .update({'status': 'arrived'});
+
+    //  DISAPPEARS COMPLETELY
   }
 
   @override
@@ -137,14 +124,12 @@ class _JobMapPageState extends State<JobMapPage> {
     final jobData = widget.jobData;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Job Map"),
-      ),
+      appBar: AppBar(title: const Text("Job Map")),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // Job Card
+                /// JOB CARD
                 Card(
                   margin: const EdgeInsets.all(12),
                   child: Padding(
@@ -153,50 +138,57 @@ class _JobMapPageState extends State<JobMapPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Category: ${jobData['category'] ?? 'N/A'}",
+                          "Category: ${jobData['category']}",
                           style: const TextStyle(
                               fontSize: 18, fontWeight: FontWeight.bold),
                         ),
-                        Text(
-                          "Status: ${jobData['status'] ?? 'N/A'}",
-                          style: const TextStyle(color: Colors.blue),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                            "Client Name: ${jobData['clientName'] ?? 'Unknown'}"),
-                        Text(
-                            "Client Number: ${jobData['clientPhone'] ?? 'N/A'}"),
-                        Text("Address: ${jobData['clientAddress'] ?? 'N/A'}"),
+                        Text("Client: ${jobData['clientName']}"),
+                        Text("Phone: ${jobData['clientPhone']}"),
+                        Text("Address: ${jobData['clientAddress']}"),
                         const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            ElevatedButton(
-                              onPressed: () =>
-                                  _firestore.acceptJob(widget.jobId),
-                              child: const Text("Accept"),
+
+                        /// ACCEPT / REJECT
+                        if (!_jobAccepted)
+                          Row(
+                            children: [
+                              ElevatedButton(
+                                onPressed: _acceptJob,
+                                child: const Text("Accept"),
+                              ),
+                              const SizedBox(width: 10),
+                              ElevatedButton(
+                                onPressed: () =>
+                                    _firestore.rejectJob(widget.jobId),
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red),
+                                child: const Text("Reject"),
+                              ),
+                            ],
+                          ),
+
+                        /// REACHED DESTINATION BUTTON
+                        if (_jobAccepted)
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.check_circle),
+                            label: const Text("Reached Destination"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              minimumSize: const Size(double.infinity, 45),
                             ),
-                            const SizedBox(width: 10),
-                            ElevatedButton(
-                              onPressed: () =>
-                                  _firestore.rejectJob(widget.jobId),
-                              style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red),
-                              child: const Text("Reject"),
-                            ),
-                          ],
-                        ),
+                            onPressed: _confirmArrival,
+                          ),
                       ],
                     ),
                   ),
                 ),
 
-                // Map
+                /// MAP ALWAYS VISIBLE WITH ROUTE
                 Expanded(
                   child: FlutterMap(
                     mapController: _mapController,
                     options: MapOptions(
                       initialCenter: workerLocation ?? LatLng(0, 0),
-                      initialZoom: 13.0,
+                      initialZoom: 13,
                     ),
                     children: [
                       TileLayer(
@@ -204,43 +196,33 @@ class _JobMapPageState extends State<JobMapPage> {
                             "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                         userAgentPackageName: 'com.example.mistri_app',
                       ),
-                      if (workerLocation != null)
-                        MarkerLayer(
-                          markers: [
+                      MarkerLayer(
+                        markers: [
+                          if (workerLocation != null)
                             Marker(
                               point: workerLocation!,
                               width: 40,
                               height: 40,
-                              child: const Icon(
-                                Icons.person_pin_circle,
-                                color: Colors.blue,
-                                size: 40,
-                              ),
+                              child: const Icon(Icons.person_pin_circle,
+                                  color: Colors.blue, size: 40),
                             ),
-                          ],
-                        ),
-                      if (customerLocation != null)
-                        MarkerLayer(
-                          markers: [
+                          if (customerLocation != null)
                             Marker(
                               point: customerLocation!,
                               width: 40,
                               height: 40,
-                              child: const Icon(
-                                Icons.location_on,
-                                color: Colors.red,
-                                size: 40,
-                              ),
+                              child: const Icon(Icons.location_on,
+                                  color: Colors.red, size: 40),
                             ),
-                          ],
-                        ),
+                        ],
+                      ),
                       if (routePoints.isNotEmpty)
                         PolylineLayer(
                           polylines: [
                             Polyline(
                               points: routePoints,
-                              color: Colors.green,
                               strokeWidth: 4,
+                              color: Colors.green,
                             ),
                           ],
                         ),
