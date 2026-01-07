@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:mistri_app/firebase_services/firestore.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 class BookingScreen extends StatefulWidget {
   const BookingScreen({super.key});
@@ -18,6 +19,60 @@ class _BookingScreenState extends State<BookingScreen> {
       _firestore.notifyJob(),
       _firestore.getWorker(),
       (jobs, workers) => [jobs, workers],
+    );
+  }
+
+  /// bKash sandbox bottom sheet
+  void _openBkashPayment({
+    required String jobId,
+    required dynamic amount,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) {
+        final controller = WebViewController()
+          ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..loadRequest(
+            Uri.parse(
+              //bKash SANDBOX DEMO PAGE
+              "https://merchantdemo.sandbox.bka.sh/payment",
+            ),
+          );
+
+        return SizedBox(
+          height: MediaQuery.of(context).size.height * 0.95,
+          child: Column(
+            children: [
+              AppBar(
+                title: const Text("bKash Payment"),
+                automaticallyImplyLeading: false,
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  )
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.all(12),
+                color: Colors.red.shade50,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Job ID: $jobId"),
+                    Text("Amount: ৳$amount"),
+                  ],
+                ),
+              ),
+              const Divider(height: 0),
+              Expanded(
+                child: WebViewWidget(controller: controller),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -46,7 +101,6 @@ class _BookingScreenState extends State<BookingScreen> {
             return const Center(child: Text("No one accepted yet"));
           }
 
-          // Convert workers list -> Map for O(1) lookup
           final Map<String, dynamic> workerMap = {
             for (var w in workers) w.data()["worker_id"]: w.data()
           };
@@ -58,8 +112,6 @@ class _BookingScreenState extends State<BookingScreen> {
           for (var j in jobMap.entries) {
             if (j.value["userid"] == userId &&
                 j.value["status"] == "accepted") {
-              // User has an accepted job
-              // You can set a flag or perform any action here
               flag = 1;
             }
           }
@@ -71,9 +123,11 @@ class _BookingScreenState extends State<BookingScreen> {
               itemBuilder: (context, index) {
                 final job = jobs[index].data() as Map<String, dynamic>;
 
-                final String? acceptedBy = job["workerid"];
+                if (job['userid'] != userId || job['status'] != 'accepted') {
+                  return const SizedBox.shrink();
+                }
 
-                // Safe lookup (no errors)
+                final String? acceptedBy = job["workerid"];
                 final workerData = workerMap[acceptedBy];
 
                 final workerName =
@@ -81,20 +135,44 @@ class _BookingScreenState extends State<BookingScreen> {
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 15),
-                  child: job['userid'] == userId
-                      ? ListTile(
-                          title: Text("Category: ${job['category']}"),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text("Status: ${job['status']}"),
-                              Text("Accepted by: $workerName"),
-                              Text(
-                                  'Phone number : ${workerData['Phone_number']}')
-                            ],
+                  elevation: 4,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Category: ${job['category']}",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
                           ),
-                        )
-                      : null,
+                        ),
+                        const SizedBox(height: 6),
+                        Text("Status: ${job['status']}"),
+                        Text("Accepted by: $workerName"),
+                        Text(
+                          "Phone number: ${workerData?['Phone_number'] ?? 'N/A'}",
+                        ),
+                        const SizedBox(height: 12),
+
+                        // PAYMENT BUTTON (PER CARD)
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.payment),
+                            label: const Text("Pay with bKash"),
+                            onPressed: () {
+                              _openBkashPayment(
+                                jobId: job['name'] ?? 'unknown',
+                                amount: job['bill'] ?? 500,
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 );
               },
             );
